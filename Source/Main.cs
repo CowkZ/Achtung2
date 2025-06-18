@@ -329,23 +329,6 @@ namespace AchtungMod
 			__result = ___pawn.workSettings.GetPriority(w) == 0;
 		}
 	}
-	//
-	[HarmonyPatch(typeof(Alert_HunterLacksRangedWeapon))]
-	[HarmonyPatch(nameof(Alert_HunterLacksRangedWeapon.HuntersWithoutRangedWeapon), MethodType.Getter)]
-	static class Alert_HunterLacksRangedWeapon_HuntersWithoutRangedWeapon_Patch
-	{
-		static bool WorkIsActive(Pawn_WorkSettings instance, WorkTypeDef w)
-		{
-			return instance.GetPriority(w) > 0; // "unpatch" it
-		}
-
-		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-		{
-			var fromMethod = SymbolExtensions.GetMethodInfo((Pawn_WorkSettings workSettings) => workSettings.WorkIsActive(null));
-			var toMethod = SymbolExtensions.GetMethodInfo(() => WorkIsActive(null, null));
-			return instructions.MethodReplacer(fromMethod, toMethod);
-		}
-	}
 
 	// forced hauling outside of allowed area
 	//
@@ -1092,7 +1075,7 @@ namespace AchtungMod
 	{
 		public static bool Prefix()
 		{
-			if (WorldRendererUtility.WorldRenderedNow)
+			if (Find.World.renderer.wantedMode == WorldRenderMode.Planet)
 				return true;
 			return Controller.GetInstance().HandleEvents();
 		}
@@ -1106,8 +1089,8 @@ namespace AchtungMod
 	{
 		public static void Postfix()
 		{
-			if (WorldRendererUtility.WorldRenderedNow == false)
-				Controller.GetInstance().HandleDrawing();
+            if (Find.World.renderer.wantedMode != WorldRenderMode.Planet)
+                Controller.GetInstance().HandleDrawing();
 		}
 	}
 
@@ -1119,8 +1102,8 @@ namespace AchtungMod
 	{
 		public static void Postfix()
 		{
-			if (WorldRendererUtility.WorldRenderedNow == false)
-				Controller.GetInstance().HandleDrawingOnGUI();
+            if (Find.World.renderer.wantedMode != WorldRenderMode.Planet)
+                Controller.GetInstance().HandleDrawingOnGUI();
 		}
 	}
 
@@ -1176,8 +1159,8 @@ namespace AchtungMod
 		public static void Postfix(List<FloatMenuOption> __result, Vector3 clickPos, Pawn pawn)
 		{
 			if (pawn?.Map != null && pawn.Drafted == false)
-				if (WorldRendererUtility.WorldRenderedNow == false)
-					__result.AddRange(Controller.AchtungChoicesAtFor(clickPos, pawn));
+                if (Find.World.renderer.wantedMode != WorldRenderMode.Planet)
+                    __result.AddRange(Controller.AchtungChoicesAtFor(clickPos, pawn));
 		}
 	}
 
