@@ -32,6 +32,10 @@
 	<DelayTitle>Hold Duration</DelayTitle>
 	<DelayExplained>Duration in milliseconds to hold right-click before the context menu appears, overriding positioning</DelayExplained>
 
+	<HunterLacksRangedWeapon>Hunter lacks a proper ranged weapon</HunterLacksRangedWeapon>
+	<HunterLacksRangedWeaponDesc>This colonist is assigned to hunt but doesn't have a suitable ranged weapon equipped.</HunterLacksRangedWeaponDesc>
+
+
 	<RescueEnabledTitle>'Rescue' work priority column</RescueEnabledTitle>
 	<RescueEnabledExplained>Enables the automatic rescue of pawns and adds a column on the work tab</RescueEnabledExplained>
 

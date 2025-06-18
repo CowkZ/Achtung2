@@ -329,27 +329,40 @@ namespace AchtungMod
 			__result = ___pawn.workSettings.GetPriority(w) == 0;
 		}
 	}
-	//
-	[HarmonyPatch(typeof(Alert_HunterLacksRangedWeapon))]
-	[HarmonyPatch(nameof(Alert_HunterLacksRangedWeapon.HuntersWithoutRangedWeapon), MethodType.Getter)]
-	static class Alert_HunterLacksRangedWeapon_HuntersWithoutRangedWeapon_Patch
-	{
-		static bool WorkIsActive(Pawn_WorkSettings instance, WorkTypeDef w)
-		{
-			return instance.GetPriority(w) > 0; // "unpatch" it
-		}
+    //
+    public class Alert_HunterLacksRangedWeapon_Custom : Alert
+    {
+        private List<Pawn> badHunters = new List<Pawn>();
 
-		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
-		{
-			var fromMethod = SymbolExtensions.GetMethodInfo((Pawn_WorkSettings workSettings) => workSettings.WorkIsActive(null));
-			var toMethod = SymbolExtensions.GetMethodInfo(() => WorkIsActive(null, null));
-			return instructions.MethodReplacer(fromMethod, toMethod);
-		}
-	}
+        public Alert_HunterLacksRangedWeapon_Custom()
+        {
+            defaultLabel = "HunterLacksRangedWeapon".Translate();
+            defaultExplanation = "HunterLacksRangedWeaponDesc".Translate();
+        }
 
-	// forced hauling outside of allowed area
-	//
-	[HarmonyPatch(typeof(HaulAIUtility))]
+        public override AlertReport GetReport()
+        {
+            badHunters.Clear();
+
+            foreach (Pawn pawn in PawnsFinder.AllMaps_FreeColonistsSpawned)
+            {
+                if (
+                    pawn.workSettings?.WorkIsActive(WorkTypeDefOf.Hunting) == true &&
+                    !WorkGiver_HunterHunt.HasHuntingWeapon(pawn)
+                )
+                {
+                    badHunters.Add(pawn);
+                }
+            }
+
+            return AlertReport.CulpritsAre(badHunters);
+        }
+    }
+
+
+    // forced hauling outside of allowed area
+    //
+    [HarmonyPatch(typeof(HaulAIUtility))]
 	[HarmonyPatch(nameof(HaulAIUtility.PawnCanAutomaticallyHaulFast))]
 	static class HaulAIUtility_PawnCanAutomaticallyHaulFast_Patch
 	{
@@ -536,8 +549,8 @@ namespace AchtungMod
 		}
 	}
 
-	// allow multiple colonists by reserving the exit path from a build place
-	/*
+    // allow multiple colonists by reserving the exit path from a build place
+    /*
 	 * ### ENABLE AGAIN FOR SMART BUILDING
 	 * 
 	[HarmonyPatch(typeof(JobDriver_ConstructFinishFrame))]
@@ -605,25 +618,27 @@ namespace AchtungMod
 		}
 	}*/
 
-	[HarmonyPatch(typeof(ReservationManager))]
-	[HarmonyPatch(nameof(ReservationManager.RespectsReservationsOf))]
-	static class ReservationManager_RespectsReservationsOf_Patch
-	{
-		public static bool Prefix(Pawn newClaimant, Pawn oldClaimant, ref bool __result)
-		{
-			var forcedWork = ForcedWork.Instance;
-			if (forcedWork.HasForcedJob(newClaimant) && forcedWork.HasForcedJob(oldClaimant))
-			{
-				__result = false;
-				return false;
-			}
-			return true;
-		}
-	}
+    [HarmonyPatch(typeof(ReservationManager), nameof(ReservationManager.RespectsReservationsOf), new Type[] { typeof(Pawn), typeof(Pawn) })]
+    static class ReservationManager_RespectsReservationsOf_Patch
+    {
+        public static bool Prefix(Pawn newClaimant, Pawn oldClaimant, ref bool __result)
+        {
+            var forcedWork = ForcedWork.Instance;
+            if (forcedWork.HasForcedJob(newClaimant) && forcedWork.HasForcedJob(oldClaimant))
+            {
+                __result = false;
+                return false;
+            }
+            return true;
+        }
+    }
 
-	[HarmonyPatch(typeof(ReservationManager))]
-	[HarmonyPatch(nameof(ReservationManager.Reserve))]
-	static class ReservationManager_Reserve_Patch
+
+    [HarmonyPatch(typeof(ReservationManager), nameof(ReservationManager.Reserve), new Type[] {
+    typeof(Pawn), typeof(LocalTargetInfo), typeof(int), typeof(int), typeof(ReservationLayerDef), typeof(bool)
+})]
+
+    static class ReservationManager_Reserve_Patch
 	{
 		public static bool CanReserve(ReservationManager reservationManager, Pawn claimant, LocalTargetInfo target, int maxPawns, int stackCount, ReservationLayerDef layer, bool ignoreOtherReservations)
 		{
@@ -813,97 +828,7 @@ namespace AchtungMod
 		}
 	}
 
-	// patch in our menu options
-	//
-	[HarmonyPatch(typeof(FloatMenuMakerMap))]
-	[HarmonyPatch(nameof(FloatMenuMakerMap.ScannerShouldSkip))]
-	static class FloatMenuMakerMap_ScannerShouldSkip_Patch
-	{
-		public static bool Prefix(WorkGiver_Scanner scanner, Thing t, ref bool __result)
-		{
-			if (Achtung.Settings.ignoreForbidden
-				&& scanner is WorkGiver_Haul
-				&& t?.def != null
-				&& t.def.alwaysHaulable
-				&& t.def.EverHaulable)
-			{
-				__result = false;
-				return false;
-			}
 
-			return true;
-		}
-	}
-	//
-	[HarmonyPatch(typeof(FloatMenuMakerMap))]
-	[HarmonyPatch(nameof(FloatMenuMakerMap.AddJobGiverWorkOrders))]
-	static class FloatMenuMakerMap_AddJobGiverWorkOrders_Patch
-	{
-		public static void Prefix(Pawn pawn, out ForcedWork __state)
-		{
-			__state = ForcedWork.Instance;
-			if (pawn?.Map != null)
-				__state.Prepare(pawn);
-		}
-
-		public static void Postfix(Pawn pawn, ForcedWork __state)
-		{
-			if (pawn?.Map != null)
-				__state.Unprepare(pawn);
-		}
-
-		public static int GetPriority(Pawn_WorkSettings workSettings, WorkTypeDef w, Pawn pawn)
-		{
-			if (Achtung.Settings.ignoreAssignments == false)
-				return workSettings.GetPriority(w);
-			return pawn.WorkTypeIsDisabled(w) ? 0 : 1;
-		}
-
-		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
-		{
-			var m_GetPriority = AccessTools.Method(typeof(Pawn_WorkSettings), nameof(Pawn_WorkSettings.GetPriority));
-			var floatMenuOptionConstructorArgs = new[] { typeof(string), typeof(Action), typeof(MenuOptionPriority), typeof(Action<Rect>), typeof(Thing), typeof(float), typeof(Func<Rect, bool>), typeof(WorldObject), typeof(bool), typeof(int) };
-			var c_FloatMenuOption = AccessTools.Constructor(typeof(FloatMenuOption), floatMenuOptionConstructorArgs);
-
-			var matcher = new CodeMatcher(instructions, generator);
-			var count = 0;
-			while (true)
-			{
-				matcher.MatchEndForward(
-					new CodeMatch(OpCodes.Isinst, typeof(WorkGiver_Scanner)),
-					CodeMatch.WithOpcodes([OpCodes.Stloc, OpCodes.Stloc_S], name: "workgiver-scanner")
-				);
-				if (matcher.IsInvalid)
-					break;
-
-				var workgiverScanner = matcher.NamedMatch("workgiver-scanner").operand;
-
-				matcher
-					.MatchStartForward(CodeMatch.Calls(m_GetPriority))
-					.ThrowIfInvalid("Cannot find call to Pawn_WorkSettings.GetPriority")
-					.RemoveInstruction()
-					.Insert(
-						new CodeInstruction(OpCodes.Ldarg_1),
-						new CodeInstruction(OpCodes.Call, SymbolExtensions.GetMethodInfo((int _) => GetPriority(default, default, default)))
-					)
-					.MatchStartForward(new CodeMatch(OpCodes.Newobj, c_FloatMenuOption))
-					.ThrowIfInvalid("Cannot find new FloatMenuOption")
-					.InsertAndAdvance(
-						new CodeInstruction(OpCodes.Ldarg_1),
-						new CodeInstruction(OpCodes.Ldarg_0),
-						new CodeInstruction(OpCodes.Ldloc, workgiverScanner)
-					)
-					.Set(OpCodes.Call, SymbolExtensions.GetMethodInfo(() => ForcedFloatMenuOption.CreateForcedMenuItem(default, default, default, default, default, default, default, default, default, default, default, default, default)));
-
-				count++;
-			}
-
-			if (count == 0)
-				Log.Error("Achtung could not add any patches to FloatMenuMakerMap.AddJobGiverWorkOrders, forcing will not work");
-
-			return matcher.InstructionEnumeration();
-		}
-	}
 	//
 	[HarmonyPatch(typeof(Pawn_JobTracker))]
 	[HarmonyPatch(nameof(Pawn_JobTracker.EndCurrentJob))]
@@ -1092,8 +1017,8 @@ namespace AchtungMod
 	{
 		public static bool Prefix()
 		{
-			if (WorldRendererUtility.WorldRenderedNow)
-				return true;
+            if (Find.World.renderer.wantedMode != WorldRenderMode.Planet)
+                return true;
 			return Controller.GetInstance().HandleEvents();
 		}
 	}
@@ -1106,8 +1031,8 @@ namespace AchtungMod
 	{
 		public static void Postfix()
 		{
-			if (WorldRendererUtility.WorldRenderedNow == false)
-				Controller.GetInstance().HandleDrawing();
+            if (Find.World.renderer.wantedMode != WorldRenderMode.Planet)
+                Controller.GetInstance().HandleDrawing();
 		}
 	}
 
@@ -1119,8 +1044,8 @@ namespace AchtungMod
 	{
 		public static void Postfix()
 		{
-			if (WorldRendererUtility.WorldRenderedNow == false)
-				Controller.GetInstance().HandleDrawingOnGUI();
+            if (Find.World.renderer.wantedMode != WorldRenderMode.Planet)
+                Controller.GetInstance().HandleDrawingOnGUI();
 		}
 	}
 
@@ -1166,20 +1091,7 @@ namespace AchtungMod
 		}
 	}
 
-	// custom context menu
-	//
-	[HarmonyPatch(typeof(FloatMenuMakerMap))]
-	[HarmonyPatch(nameof(FloatMenuMakerMap.ChoicesAtFor))]
-	[StaticConstructorOnStartup]
-	static class FloatMenuMakerMap_ChoicesAtFor_Postfix
-	{
-		public static void Postfix(List<FloatMenuOption> __result, Vector3 clickPos, Pawn pawn)
-		{
-			if (pawn?.Map != null && pawn.Drafted == false)
-				if (WorldRendererUtility.WorldRenderedNow == false)
-					__result.AddRange(Controller.AchtungChoicesAtFor(clickPos, pawn));
-		}
-	}
+
 
 	/*
 	[HarmonyPatch(typeof(FloatMenuMakerMap))]
