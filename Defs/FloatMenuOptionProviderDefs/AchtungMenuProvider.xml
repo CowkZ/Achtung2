@@ -1,0 +1,6 @@
+<FloatMenuOptionProviderDefs>
+  <li>
+    <defName>AchtungMenuProvider</defName>
+    <class>AchtungMod.AchtungMenuProvider</class>
+  </li>
+</FloatMenuOptionProviderDefs>
