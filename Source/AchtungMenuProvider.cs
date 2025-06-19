@@ -12,8 +12,11 @@ namespace AchtungMod
 
         public override IEnumerable<FloatMenuOption> GetOptionsFor(Pawn clickedPawn, FloatMenuContext context)
         {
-            var multiActions = new MultiActions(context.ClickedCell, context.map, clickedPawn);
+            // LINHA DE TESTE ADICIONADA PARA DEBUG
+            yield return new FloatMenuOption("--- TESTE ACHTUNG PROVIDER ---", () => { });
 
+            // Seu código original para carregar as ações
+            var multiActions = new MultiActions(context.ClickedCell, context.map, clickedPawn);
             foreach (FloatMenuOption option in multiActions.GetFloatMenuOptions())
             {
                 yield return option;
