@@ -96,7 +96,7 @@ namespace AchtungMod
 			helpRect.y -= 33 + 4;
 			helpRect.xMin = helpRect.xMax - "Tutorial".Translate().GetWidthCached() - 42;
 			if (Widgets.ButtonText(helpRect, "Tutorial".Translate()))
-				ModFeatures.ShowAgain<Achtung>(true);
+				ModFeatures.ShowAgain<AchtungModMain>(true);
 
 			var columnWidth = (canvas.width - 30) / 2 - 2;
 			var list = new Listing_Standard { ColumnWidth = columnWidth };

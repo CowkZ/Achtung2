@@ -18,7 +18,7 @@ namespace AchtungMod
 		{
 			var cell = pos.ToIntVec3();
 
-			if (AchtungLoader.IsSameSpotInstalled)
+			if (Achtung.IsSameSpotInstalled)
 			{
 				if (cell.Standable(pawn.Map) && ReachabilityUtility.CanReach(pawn, cell, PathEndMode.OnCell, Danger.Deadly))
 				{

@@ -64,7 +64,7 @@ namespace AchtungMod
 
 		static Texture2D LoadTexture(string path)
 		{
-			var modRootDir = LoadedModManager.GetMod<Achtung>().Content.RootDir;
+			var modRootDir = LoadedModManager.GetMod<AchtungModMain>().Content.RootDir;
 			var fullPath = Path.Combine(modRootDir, "Textures", $"{path}.png");
 			var data = File.ReadAllBytes(fullPath);
 			if (data == null || data.Length == 0)
